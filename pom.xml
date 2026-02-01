@@ -20,6 +20,13 @@
     </properties>
 
     <dependencies>
+        <!-- FlatLaf - 现代化 Swing Look and Feel -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.4</version>
+        </dependency>
+
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
@@ -389,6 +396,12 @@
                                 </filter>
                                 <filter>
                                     <artifact>org.javassist:javassist</artifact>
+                                    <includes>
+                                        <include>**</include>
+                                    </includes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.formdev:flatlaf</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>

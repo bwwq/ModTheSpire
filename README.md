@@ -43,3 +43,4 @@ See [CHANGELOG](CHANGELOG.md)
 * reckter - Maven setup
 * FlipskiZ - Mod initialization
 * pk27602017 - UTF-8 support in ModInfo
+* bwwq - UI theme

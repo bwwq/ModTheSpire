@@ -148,11 +148,22 @@ public class Loader
             defaults.setProperty("skip-launcher", Boolean.toString(false));
             defaults.setProperty("skip-intro", Boolean.toString(false));
             defaults.setProperty("mods", "");
+            defaults.setProperty("ui-scale", "-1");
             defaults.putAll(ModSelectWindow.getDefaults());
             MTS_CONFIG = new SpireConfig(null, "ModTheSpire", defaults);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        // 读取用户缩放设置并初始化主题（必须在创建任何 UI 组件之前）
+        {
+            float userScale = Float.parseFloat(MTS_CONFIG.getString("ui-scale"));
+            if (userScale > 0) {
+                com.evacipated.cardcrawl.modthespire.ui.ThemeManager.setUserScaleFactor(userScale);
+            }
+            com.evacipated.cardcrawl.modthespire.ui.ThemeManager.initialize();
+        }
+
         DEBUG = MTS_CONFIG.getBool("debug");
         OUT_JAR = MTS_CONFIG.getBool("out-jar");
         PACKAGE = MTS_CONFIG.getBool("package");

@@ -22,12 +22,17 @@ import java.util.Properties;
 
 public class ModSelectWindow extends JFrame
 {
-    /**
-     *
-     */
     private static final long serialVersionUID = -8232997068791248057L;
-    private static final int DEFAULT_WIDTH = 800;
-    private static final int DEFAULT_HEIGHT = 500;
+    private static final int BASE_WIDTH = 900;
+    private static final int BASE_HEIGHT = 560;
+
+    private static int getDefaultWidth() {
+        return ThemeManager.scale(BASE_WIDTH);
+    }
+
+    private static int getDefaultHeight() {
+        return ThemeManager.scale(BASE_HEIGHT);
+    }
     private static final String DEBUG_OPTION = "Debug";
     private static final String PLAY_OPTION = "Play";
     private static final String JAR_DUMP_OPTION = "Dump Patched Jar";
@@ -79,19 +84,15 @@ public class ModSelectWindow extends JFrame
         Properties properties = new Properties();
         properties.setProperty("x", "center");
         properties.setProperty("y", "center");
-        properties.setProperty("width", Integer.toString(DEFAULT_WIDTH));
-        properties.setProperty("height", Integer.toString(DEFAULT_HEIGHT));
+        properties.setProperty("width", Integer.toString(BASE_WIDTH));
+        properties.setProperty("height", Integer.toString(BASE_HEIGHT));
         properties.setProperty("maximize", Boolean.toString(false));
         return properties;
     }
-    
+
     public ModSelectWindow(ModInfo[] modInfos, boolean skipLauncher)
     {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (ClassNotFoundException | InstantiationException | UnsupportedLookAndFeelException | IllegalAccessException e) {
-            e.printStackTrace();
-        }
+        // FlatLaf 主题已在 Loader.main() 中初始化
 
         setIconImage(APP_ICON);
 
@@ -108,11 +109,11 @@ public class ModSelectWindow extends JFrame
     private void readWindowPosSize()
     {
         // Sanity check values
-        if (Loader.MTS_CONFIG.getInt("width") < DEFAULT_WIDTH) {
-            Loader.MTS_CONFIG.setInt("width", DEFAULT_WIDTH);
+        if (Loader.MTS_CONFIG.getInt("width") < getDefaultWidth()) {
+            Loader.MTS_CONFIG.setInt("width", getDefaultWidth());
         }
-        if (Loader.MTS_CONFIG.getInt("height") < DEFAULT_HEIGHT) {
-            Loader.MTS_CONFIG.setInt("height", DEFAULT_HEIGHT);
+        if (Loader.MTS_CONFIG.getInt("height") < getDefaultHeight()) {
+            Loader.MTS_CONFIG.setInt("height", getDefaultHeight());
         }
         location = new Rectangle();
         location.width = Loader.MTS_CONFIG.getInt("width");
@@ -198,13 +199,21 @@ public class ModSelectWindow extends JFrame
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setResizable(true);
 
-        rootPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+        rootPane.setBorder(new EmptyBorder(ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8)));
 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(6, 6));
         getContentPane().setPreferredSize(new Dimension(location.width, location.height));
 
-        getContentPane().add(makeModListPanel(), BorderLayout.WEST);
-        getContentPane().add(makeInfoPanel(), BorderLayout.CENTER);
+        // 使用 JSplitPane 支持用户调整左右比例
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane.setLeftComponent(makeModListPanel());
+        splitPane.setRightComponent(makeInfoPanel());
+        splitPane.setDividerLocation(280);
+        splitPane.setDividerSize(6);
+        splitPane.setContinuousLayout(true);
+        splitPane.setBorder(null);
+
+        getContentPane().add(splitPane, BorderLayout.CENTER);
         getContentPane().add(makeTopPanel(), BorderLayout.NORTH);
 
         pack();
@@ -227,8 +236,9 @@ public class ModSelectWindow extends JFrame
     private JPanel makeModListPanel()
     {
         JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.setPreferredSize(new Dimension(220, 300));
+        panel.setLayout(new BorderLayout(0, 6));
+        panel.setMinimumSize(new Dimension(ThemeManager.scale(250), ThemeManager.scale(300)));
+        panel.setPreferredSize(new Dimension(ThemeManager.scale(280), ThemeManager.scale(300)));
 
         // Mod List
         DefaultListModel<ModPanel> model = new DefaultListModel<>();
@@ -238,6 +248,8 @@ public class ModSelectWindow extends JFrame
         modList.publishBoxChecked();
 
         JScrollPane modScroller = new JScrollPane(modList);
+        modScroller.setBorder(BorderFactory.createLineBorder(ThemeManager.BORDER_DEFAULT));
+        modScroller.getVerticalScrollBar().setUnitIncrement(ThemeManager.scale(16));
         panel.add(modScroller, BorderLayout.CENTER);
 
         // Play button
@@ -246,6 +258,9 @@ public class ModSelectWindow extends JFrame
                 Loader.OUT_JAR ? JAR_DUMP_OPTION :
                 PLAY_OPTION
         );
+        playBtn.setFont(playBtn.getFont().deriveFont(Font.BOLD, (float) ThemeManager.scale(14)));
+        playBtn.setPreferredSize(new Dimension(0, ThemeManager.scale(40)));
+        playBtn.putClientProperty("JButton.buttonType", "default");
         playBtn.addActionListener((ActionEvent event) -> {
             showingLog = true;
             playBtn.setEnabled(false);
@@ -254,12 +269,15 @@ public class ModSelectWindow extends JFrame
 
             JTextArea textArea = new JTextArea();
             textArea.setLineWrap(true);
-            textArea.setFont(new Font("monospaced", Font.PLAIN, 12));
+            textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, ThemeManager.scale(12)));
+            textArea.setBackground(ThemeManager.BG_PRIMARY);
+            textArea.setForeground(ThemeManager.TEXT_PRIMARY);
+            textArea.setCaretColor(ThemeManager.TEXT_PRIMARY);
             JScrollPane logScroller = new JScrollPane(textArea);
             this.getContentPane().add(logScroller, BorderLayout.CENTER);
             MessageConsole mc = new MessageConsole(textArea);
             mc.redirectOut(null, System.out);
-            mc.redirectErr(null, System.err);
+            mc.redirectErr(ThemeManager.STATUS_ERROR, System.err);
 
             setResizable(true);
             pack();
@@ -292,7 +310,6 @@ public class ModSelectWindow extends JFrame
         if (Loader.STS_BETA && !Loader.allowBeta) {
             playBtn.setEnabled(false);
         }
-        panel.add(playBtn, BorderLayout.SOUTH);
 
         // Open mod directory
         JButton openFolderBtn = new JButton(UIManager.getIcon("FileView.directoryIcon"));
@@ -314,11 +331,6 @@ public class ModSelectWindow extends JFrame
         updatesBtn.addActionListener(event -> {
             startCheckingForModUpdates(updatesBtn);
         });
-        // Settings button
-        JButton settingsBtn = new JButton("Settings");
-        settingsBtn.addActionListener((ActionEvent event) -> {
-            // TODO
-        });
         // Toggle all button
         JButton toggleAllBtn = new JButton(UIManager.getIcon("Tree.collapsedIcon"));
         toggleAllBtn.setToolTipText("Toggle all mods On/Off");
@@ -327,10 +339,13 @@ public class ModSelectWindow extends JFrame
             repaint();
         });
 
-        JPanel btnPanel = new JPanel(new GridLayout(1, 0));
-        //btnPanel.add(settingsBtn);
-        btnPanel.add(updatesBtn);
-        btnPanel.add(openFolderBtn);
+        JToolBar toolbar = new JToolBar();
+        toolbar.setFloatable(false);
+        toolbar.setBorder(null);
+        toolbar.add(updatesBtn);
+        toolbar.add(openFolderBtn);
+        toolbar.addSeparator();
+        toolbar.add(toggleAllBtn);
 
         JComboBox<String> profilesList = new JComboBox<>(ModList.getAllModListNames().toArray(new String[0]));
         JButton addProfile = new JButton("+");
@@ -362,13 +377,9 @@ public class ModSelectWindow extends JFrame
         JPanel profilesPanel = new JPanel(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.BOTH;
-        c.ipady = 2;
-        profilesPanel.add(toggleAllBtn, c);
         c.weightx = 0.9;
-        c.ipady = 0;
         profilesPanel.add(profilesList, c);
         c.weightx = 0;
-        c.ipady = 2;
         // Add profile button
         addProfile.setToolTipText("Add new profile");
         addProfile.addActionListener((ActionEvent event) -> {
@@ -429,11 +440,17 @@ public class ModSelectWindow extends JFrame
             }
         });
 
-        JPanel topPanel = new JPanel(new GridLayout(0, 1));
-        topPanel.add(btnPanel);
-        topPanel.add(profilesPanel);
-        topPanel.add(filter);
+        JPanel topPanel = new JPanel(new BorderLayout(0, 6));
+        topPanel.add(toolbar, BorderLayout.NORTH);
+        topPanel.add(profilesPanel, BorderLayout.CENTER);
+        topPanel.add(filter, BorderLayout.SOUTH);
         panel.add(topPanel, BorderLayout.NORTH);
+
+        // South panel with status and play button
+        JPanel southPanel = new JPanel(new BorderLayout(0, 6));
+        southPanel.add(makeStatusPanel(), BorderLayout.NORTH);
+        southPanel.add(playBtn, BorderLayout.SOUTH);
+        panel.add(southPanel, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -441,30 +458,32 @@ public class ModSelectWindow extends JFrame
     private JPanel makeInfoPanel()
     {
         JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
+        panel.setLayout(new BorderLayout(0, 6));
 
         // Top mod banner panel
         panel.add(makeModBannerPanel(), BorderLayout.NORTH);
 
-        // Bottom status panel
-        panel.add(makeStatusPanel(), BorderLayout.SOUTH);
-
         // Main info panel
         JPanel infoPanel = new JPanel();
-        name = BorderFactory.createTitledBorder("Mod Info");
-        name.setTitleFont(name.getTitleFont().deriveFont(Font.BOLD));
+        name = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(ThemeManager.BORDER_DEFAULT),
+            "Mod Info"
+        );
+        name.setTitleFont(name.getTitleFont().deriveFont(Font.BOLD, (float) ThemeManager.scale(14)));
+        name.setTitleColor(ThemeManager.TEXT_PRIMARY);
         infoPanel.setBorder(BorderFactory.createCompoundBorder(
             name,
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            BorderFactory.createEmptyBorder(ThemeManager.scale(10), ThemeManager.scale(10), ThemeManager.scale(10), ThemeManager.scale(10))
         ));
         infoPanel.setLayout(new GridBagLayout());
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.BOTH;
+        c.insets = new Insets(ThemeManager.scale(4), 0, ThemeManager.scale(4), ThemeManager.scale(8));
 
         c.gridx = 1;
         c.gridy = 0;
         c.anchor = GridBagConstraints.WEST;
-        c.weightx = 1;
+        c.weightx = 0.4;
 
         authors = makeInfoTextAreaField("Author(s)", " ");
         infoPanel.add(authors, c);
@@ -486,16 +505,22 @@ public class ModSelectWindow extends JFrame
         infoPanel.add(credits, c);
 
         c.gridy = 5;
+        c.weighty = 1;
         status = makeInfoTextAreaField("Status", " ");
         infoPanel.add(status, c);
 
         c.gridx = 0;
         c.gridy = 0;
-        c.gridheight = 7;
-        c.weightx = 1;
+        c.gridheight = 6;
+        c.weightx = 0.6;
         c.weighty = 1;
+        c.insets = new Insets(ThemeManager.scale(4), 0, ThemeManager.scale(4), ThemeManager.scale(12));
         description = makeInfoTextAreaField("Description", " ");
-        infoPanel.add(description, c);
+        JScrollPane descScroller = new JScrollPane(description);
+        descScroller.setBorder(description.getBorder());
+        descScroller.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        description.setBorder(null);
+        infoPanel.add(descScroller, c);
 
         panel.add(infoPanel, BorderLayout.CENTER);
 
@@ -506,12 +531,17 @@ public class ModSelectWindow extends JFrame
     {
         JLabel label = new JLabel(value);
 
-        TitledBorder border = BorderFactory.createTitledBorder(title);
-        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD));
-        label.setFont(label.getFont().deriveFont(Font.PLAIN));
+        TitledBorder border = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(ThemeManager.BORDER_DEFAULT),
+            title
+        );
+        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, (float) ThemeManager.scale(12)));
+        border.setTitleColor(ThemeManager.TEXT_SECONDARY);
+        label.setFont(label.getFont().deriveFont(Font.PLAIN, (float) ThemeManager.scale(12)));
+        label.setForeground(ThemeManager.TEXT_PRIMARY);
         label.setBorder(BorderFactory.createCompoundBorder(
             border,
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            BorderFactory.createEmptyBorder(ThemeManager.scale(6), ThemeManager.scale(8), ThemeManager.scale(6), ThemeManager.scale(8))
         ));
 
         return label;
@@ -521,18 +551,23 @@ public class ModSelectWindow extends JFrame
     {
         JTextArea label = new JTextArea(value);
 
-        TitledBorder border = BorderFactory.createTitledBorder(title);
-        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD));
+        TitledBorder border = BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(ThemeManager.BORDER_DEFAULT),
+            title
+        );
+        border.setTitleFont(border.getTitleFont().deriveFont(Font.BOLD, (float) ThemeManager.scale(12)));
+        border.setTitleColor(ThemeManager.TEXT_SECONDARY);
         label.setBorder(BorderFactory.createCompoundBorder(
             border,
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+            BorderFactory.createEmptyBorder(ThemeManager.scale(6), ThemeManager.scale(8), ThemeManager.scale(6), ThemeManager.scale(8))
         ));
         label.setEditable(false);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         label.setLineWrap(true);
         label.setWrapStyleWord(true);
         label.setOpaque(false);
-        label.setFont(border.getTitleFont().deriveFont(Font.PLAIN).deriveFont(11.0f));
+        label.setForeground(ThemeManager.TEXT_PRIMARY);
+        label.setFont(border.getTitleFont().deriveFont(Font.PLAIN, (float) ThemeManager.scale(11)));
 
         return label;
     }
@@ -541,7 +576,7 @@ public class ModSelectWindow extends JFrame
     {
         modBannerNoticePanel = new JPanel();
         modBannerNoticePanel.setLayout(new GridLayout(0, 1));
-        modBannerNoticePanel.setBorder(BorderFactory.createEmptyBorder(1, 0, 2, 0));
+        modBannerNoticePanel.setBorder(BorderFactory.createEmptyBorder(ThemeManager.scale(1), 0, ThemeManager.scale(2), 0));
 
         modUpdateBanner = new JLabel();
         modUpdateBanner.setIcon(ICON_WARNING);
@@ -550,8 +585,9 @@ public class ModSelectWindow extends JFrame
             "</html>");
         modUpdateBanner.setHorizontalAlignment(JLabel.CENTER);
         modUpdateBanner.setOpaque(true);
-        modUpdateBanner.setBackground(new Color(255, 193, 7));
-        modUpdateBanner.setBorder(new EmptyBorder(5, 5, 5, 5));
+        modUpdateBanner.setBackground(ThemeManager.STATUS_WARNING);
+        modUpdateBanner.setForeground(ThemeManager.BG_PRIMARY);
+        modUpdateBanner.setBorder(new EmptyBorder(ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8)));
 
         return modBannerNoticePanel;
     }
@@ -559,19 +595,25 @@ public class ModSelectWindow extends JFrame
     private JPanel makeStatusPanel()
     {
         JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.setBorder(new MatteBorder(1, 0, 0, 0, Color.darkGray));
+        panel.setLayout(new BorderLayout(ThemeManager.scale(10), 0));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            new MatteBorder(1, 0, 0, 0, ThemeManager.BORDER_DEFAULT),
+            BorderFactory.createEmptyBorder(ThemeManager.scale(6), 0, 0, 0)
+        ));
 
         // StS version
-        JLabel sts_version = new JLabel("Slay the Spire version: " + Loader.STS_VERSION);
+        JLabel sts_version = new JLabel("Slay the Spire: " + Loader.STS_VERSION);
+        sts_version.setForeground(ThemeManager.TEXT_SECONDARY);
         if (Loader.STS_BETA) {
             sts_version.setText(sts_version.getText() + " BETA");
+            sts_version.setForeground(ThemeManager.STATUS_WARNING);
         }
         sts_version.setHorizontalAlignment(SwingConstants.RIGHT);
         panel.add(sts_version, BorderLayout.EAST);
 
         // Debug checkbox
         JCheckBox debugCheck = new JCheckBox(DEBUG_OPTION);
+        debugCheck.setForeground(ThemeManager.TEXT_SECONDARY);
         if (Loader.DEBUG) {
             debugCheck.setSelected(true);
         }
@@ -584,7 +626,48 @@ public class ModSelectWindow extends JFrame
                 e.printStackTrace();
             }
         });
-        panel.add(debugCheck, BorderLayout.WEST);
+
+        // UI Scale selector
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, ThemeManager.scale(10), 0));
+        leftPanel.setOpaque(false);
+        leftPanel.add(debugCheck);
+
+        JLabel scaleLabel = new JLabel("缩放:");
+        scaleLabel.setForeground(ThemeManager.TEXT_SECONDARY);
+        leftPanel.add(scaleLabel);
+
+        String[] scaleOptions = {"自动", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x", "2.5x", "3.0x"};
+        float[] scaleValues = {-1f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f};
+        JComboBox<String> scaleCombo = new JComboBox<>(scaleOptions);
+        scaleCombo.setForeground(ThemeManager.TEXT_PRIMARY);
+
+        // 设置当前选中项
+        float currentScale = ThemeManager.getUserScaleFactor();
+        int selectedIndex = 0;
+        for (int i = 0; i < scaleValues.length; i++) {
+            if (Math.abs(scaleValues[i] - currentScale) < 0.01f) {
+                selectedIndex = i;
+                break;
+            }
+        }
+        scaleCombo.setSelectedIndex(selectedIndex);
+
+        scaleCombo.addActionListener((ActionEvent event) -> {
+            int idx = scaleCombo.getSelectedIndex();
+            float newScale = scaleValues[idx];
+            Loader.MTS_CONFIG.setString("ui-scale", String.valueOf(newScale));
+            try {
+                Loader.MTS_CONFIG.save();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            JOptionPane.showMessageDialog(this,
+                "缩放设置已保存。\n重启 ModTheSpire 后生效。",
+                "提示", JOptionPane.INFORMATION_MESSAGE);
+        });
+        leftPanel.add(scaleCombo);
+
+        panel.add(leftPanel, BorderLayout.WEST);
 
         return panel;
     }
@@ -592,7 +675,7 @@ public class ModSelectWindow extends JFrame
     private JPanel makeTopPanel()
     {
         bannerNoticePanel = new JPanel();
-        bannerNoticePanel.setLayout(new GridLayout(0, 1));
+        bannerNoticePanel.setLayout(new BoxLayout(bannerNoticePanel, BoxLayout.Y_AXIS));
 
         if (Loader.STS_BETA) {
             betaWarningBanner = new JLabel();
@@ -604,9 +687,12 @@ public class ModSelectWindow extends JFrame
                 "</html>");
             betaWarningBanner.setHorizontalAlignment(JLabel.CENTER);
             betaWarningBanner.setOpaque(true);
-            betaWarningBanner.setBackground(new Color(255, 80, 80));
-            betaWarningBanner.setBorder(new EmptyBorder(5, 5, 5, 5));
+            betaWarningBanner.setBackground(ThemeManager.STATUS_ERROR);
+            betaWarningBanner.setForeground(ThemeManager.BG_PRIMARY);
+            betaWarningBanner.setBorder(new EmptyBorder(ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8)));
+            betaWarningBanner.setMaximumSize(new Dimension(Integer.MAX_VALUE, betaWarningBanner.getPreferredSize().height));
             bannerNoticePanel.add(betaWarningBanner);
+            bannerNoticePanel.add(Box.createVerticalStrut(ThemeManager.scale(4)));
         }
 
         mtsUpdateBanner = new JLabel();
@@ -617,9 +703,11 @@ public class ModSelectWindow extends JFrame
             "</html>");
         mtsUpdateBanner.setHorizontalAlignment(JLabel.CENTER);
         mtsUpdateBanner.setOpaque(true);
-        mtsUpdateBanner.setBackground(new Color(255, 193, 7));
-        mtsUpdateBanner.setBorder(new EmptyBorder(5, 5, 5, 5));
+        mtsUpdateBanner.setBackground(ThemeManager.STATUS_WARNING);
+        mtsUpdateBanner.setForeground(ThemeManager.BG_PRIMARY);
+        mtsUpdateBanner.setBorder(new EmptyBorder(ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8), ThemeManager.scale(8)));
         mtsUpdateBanner.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        mtsUpdateBanner.setMaximumSize(new Dimension(Integer.MAX_VALUE, mtsUpdateBanner.getPreferredSize().height));
 
         return bannerNoticePanel;
     }

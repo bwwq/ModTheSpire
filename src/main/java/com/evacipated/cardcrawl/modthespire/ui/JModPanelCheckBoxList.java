@@ -32,6 +32,7 @@ public class JModPanelCheckBoxList extends JList<ModPanel> {
         setTransferHandler(new ListItemTransferHandler());
 
         setCellRenderer(new CellRenderer());
+        setBackground(ThemeManager.BG_SECONDARY);
 
         addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent e) {
@@ -49,11 +50,11 @@ public class JModPanelCheckBoxList extends JList<ModPanel> {
                 }
             }
         });
-        
+
         // force mods to calc their backgrounds
         publishBoxChecked();
     }
-    
+
     public void publishBoxChecked() {
         for (int i = 0; i < getModel().getSize(); i++) {
             getModel().getElementAt(i).recalcModWarnings(this);
@@ -146,21 +147,26 @@ public class JModPanelCheckBoxList extends JList<ModPanel> {
 
         public Component getListCellRendererComponent(JList<? extends ModPanel> list, ModPanel value, int index,
                 boolean isSelected, boolean cellHasFocus) {
-            JCheckBox checkbox = value.checkBox;
-
-            // Drawing checkbox, change the appearance here
-            value.setBackground(isSelected ? getSelectionBackground() : getBackground());
-            value.setForeground(isSelected ? getSelectionForeground() : getForeground());
-
-            checkbox.setFont(getFont());
-            checkbox.setFocusPainted(false);
-            checkbox.setBorderPainted(false);
 
             if (value.isFilteredOut()) {
                 return hiddenItem;
-            } else {
-                return value;
             }
+
+            // 使用主题颜色
+            if (isSelected) {
+                value.setBackground(ThemeManager.BG_SELECTED);
+                value.infoPanel.name.setForeground(Color.WHITE);
+                value.infoPanel.version.setForeground(new Color(200, 200, 200));
+            } else {
+                // 重新计算警告状态（保持警告颜色）
+                value.recalcModWarnings(JModPanelCheckBoxList.this);
+            }
+
+            value.checkBox.setFont(getFont());
+            value.checkBox.setFocusPainted(false);
+            value.checkBox.setBorderPainted(false);
+
+            return value;
         }
     }
 }

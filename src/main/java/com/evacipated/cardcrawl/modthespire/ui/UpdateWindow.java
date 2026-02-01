@@ -25,20 +25,22 @@ class UpdateWindow extends JDialog
         if (ModSelectWindow.MODUPDATES.size() == 1) {
             setTitle("Update Available");
         } else {
-            setTitle("Updates Available");
+            setTitle(ModSelectWindow.MODUPDATES.size() + " Updates Available");
         }
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         setResizable(true);
 
-        getContentPane().setPreferredSize(new Dimension(300, 200));
+        getContentPane().setPreferredSize(new Dimension(400, 300));
 
-        rootPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+        rootPane.setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(0, 12));
 
         DefaultListModel<String> model = new DefaultListModel<>();
         JList<String> list = new JList<>(model);
+        list.setCellRenderer(new ModUpdateCellRenderer());
         JScrollPane modScroller = new JScrollPane(list);
+        modScroller.setBorder(BorderFactory.createLineBorder(ThemeManager.BORDER_DEFAULT));
         getContentPane().add(modScroller, BorderLayout.CENTER);
 
         for (ModUpdate update : ModSelectWindow.MODUPDATES) {
@@ -51,17 +53,17 @@ class UpdateWindow extends JDialog
         } else {
             tmp = "The following mods have updates available:";
         }
-        getContentPane().add(new JLabel(tmp), BorderLayout.NORTH);
+        JLabel headerLabel = new JLabel(tmp);
+        headerLabel.setIcon(ModSelectWindow.ICON_WARNING);
+        headerLabel.setForeground(ThemeManager.TEXT_PRIMARY);
+        getContentPane().add(headerLabel, BorderLayout.NORTH);
 
-        JPanel btnPanel = new JPanel(new GridBagLayout());
+        JPanel btnPanel = new JPanel(new GridLayout(2, 1, 0, 6));
         JButton downloadBtn = new JButton("Download Updates and Restart ModTheSpire");
+        downloadBtn.putClientProperty("JButton.buttonType", "default");
         JButton browserBtn = new JButton("Open Releases in Browser");
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 0.5;
-        btnPanel.add(downloadBtn, c);
-        c.gridy = 1;
-        btnPanel.add(browserBtn, c);
+        btnPanel.add(downloadBtn);
+        btnPanel.add(browserBtn);
         getContentPane().add(btnPanel, BorderLayout.SOUTH);
 
         // Open each update's release url in browser
@@ -93,5 +95,16 @@ class UpdateWindow extends JDialog
 
         pack();
         setLocationRelativeTo(getParent());
+    }
+
+    private static class ModUpdateCellRenderer extends DefaultListCellRenderer {
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                int index, boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            setIcon(ModSelectWindow.ICON_UPDATE);
+            setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+            return this;
+        }
     }
 }

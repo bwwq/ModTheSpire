@@ -14,16 +14,17 @@ import java.util.ArrayList;
 @SuppressWarnings("serial")
 public class ModPanel extends JPanel
 {
-    private static final Color lightRed = new Color(229,115,115);
-    private static final Color lightOrange = new Color(255, 159, 0); // orange peel (https://en.wikipedia.org/wiki/Shades_of_orange#Orange_peel)
-    private static final Color lightYellow = new Color(255, 238, 88);
+    // 暗色主题下的状态背景色
+    private static final Color ERROR_BG = new Color(80, 40, 40);
+    private static final Color WARNING_BG = new Color(80, 60, 30);
+
     public ModInfo info;
     public File modFile;
     public JCheckBox checkBox;
-    private InfoPanel infoPanel;
+    InfoPanel infoPanel;
     private JLabel update = new JLabel();
     private boolean isFilteredOut = false;
-    
+
     private static boolean dependenciesChecked(ModInfo info, JModPanelCheckBoxList parent) {
         String[] dependencies = info.Dependencies;
         boolean[] checked = new boolean[dependencies.length]; // initializes to false
@@ -44,7 +45,7 @@ public class ModPanel extends JPanel
 
         return allChecked;
     }
-    
+
     private static String[] missingDependencies(ModInfo info, JModPanelCheckBoxList parent) {
         String[] dependencies = info.Dependencies;
         boolean[] checked = new boolean[dependencies.length]; // initializes to false
@@ -65,12 +66,21 @@ public class ModPanel extends JPanel
         String[] returnType = new String[missing.size()];
         return missing.toArray(returnType);
     }
-    
+
     public ModPanel(ModInfo info, File modFile, JModPanelCheckBoxList parent) {
         this.info = info;
         this.modFile = modFile;
         checkBox = new JCheckBox();
-        setLayout(new BorderLayout());
+        checkBox.setOpaque(false);
+
+        setLayout(new BorderLayout(6, 0));
+        setOpaque(true);
+        setBackground(ThemeManager.BG_SECONDARY);
+        setBorder(BorderFactory.createCompoundBorder(
+            new MatteBorder(0, 0, 1, 0, ThemeManager.BORDER_DEFAULT),
+            new EmptyBorder(6, 8, 6, 8)
+        ));
+
         infoPanel = new InfoPanel();
 
         add(checkBox, BorderLayout.WEST);
@@ -79,8 +89,8 @@ public class ModPanel extends JPanel
         // Update icon
         update.setHorizontalAlignment(JLabel.CENTER);
         update.setVerticalAlignment(JLabel.CENTER);
-        update.setOpaque(true);
-        update.setBorder(new EmptyBorder(0, 0, 0, 4));
+        update.setOpaque(false);
+        update.setBorder(new EmptyBorder(0, 4, 0, 0));
         if (info.isWorkshop) {
             setUpdateIcon(ModSelectWindow.UpdateIconType.WORKSHOP);
         } else if (info.UpdateJSON != null && !info.UpdateJSON.isEmpty()) {
@@ -90,38 +100,36 @@ public class ModPanel extends JPanel
         }
         add(update, BorderLayout.EAST);
 
-        setBorder(new MatteBorder(0, 0, 1, 0, Color.darkGray));
-
         checkBox.addItemListener((event) -> {
             parent.publishBoxChecked();
         });
         parent.publishBoxChecked();
     }
-    
+
     public void recalcModWarnings(JModPanelCheckBoxList parent)
     {
         info.statusMsg = " ";
-        checkBox.setBackground(Color.WHITE);
-        infoPanel.setBackground(Color.WHITE);
+        setBackground(ThemeManager.BG_SECONDARY);
+        infoPanel.resetColors();
 
         if (info.MTS_Version == null) {
             checkBox.setEnabled(false);
-            checkBox.setBackground(lightRed);
-            infoPanel.setBackground(lightRed);
+            setBackground(ERROR_BG);
+            infoPanel.setWarningColors(ThemeManager.STATUS_ERROR);
             info.statusMsg = "This mod is missing a valid ModTheSpire version number.";
             return;
         }
         if (info.MTS_Version.compareTo(Loader.MTS_VERSION) > 0) {
             checkBox.setEnabled(false);
-            checkBox.setBackground(lightRed);
-            infoPanel.setBackground(lightRed);
+            setBackground(ERROR_BG);
+            infoPanel.setWarningColors(ThemeManager.STATUS_ERROR);
             info.statusMsg = "This mod requires ModTheSpire v" + info.MTS_Version + " or higher.";
             return;
         }
 
         if (checkBox.isSelected() && !dependenciesChecked(info, parent)) {
-            checkBox.setBackground(lightOrange);
-            infoPanel.setBackground(lightOrange);
+            setBackground(WARNING_BG);
+            infoPanel.setWarningColors(ThemeManager.STATUS_WARNING);
             String[] missingDependencies = missingDependencies(info, parent);
             StringBuilder tooltip = new StringBuilder();
             tooltip.append("Missing dependencies: [");
@@ -130,8 +138,6 @@ public class ModPanel extends JPanel
             info.statusMsg = tooltip.toString();
         }
         if (Loader.STS_VERSION != null && info.STS_Version != null && !Loader.STS_VERSION.equals(info.STS_Version)) {
-            //checkBox.setBackground(lightYellow);
-            //infoPanel.setBackground(lightYellow);
             if (info.statusMsg == " ") {
                 info.statusMsg = "This mod explicitly supports StS " + info.STS_Version + ".\n" +
                     "You are running StS " + Loader.STS_VERSION + ".\n" +
@@ -218,40 +224,40 @@ public class ModPanel extends JPanel
 
         public InfoPanel()
         {
-            setLayout(new BorderLayout());
+            setLayout(new BorderLayout(0, 2));
+            setOpaque(false);
 
-            name.setOpaque(true);
+            name.setOpaque(false);
             name.setText(info.Name);
-            name.setFont(name.getFont().deriveFont(13.0f).deriveFont(Font.BOLD));
+            name.setFont(name.getFont().deriveFont(Font.BOLD, (float) ThemeManager.scale(13)));
+            name.setForeground(ThemeManager.TEXT_PRIMARY);
             add(name, BorderLayout.CENTER);
 
-            version.setOpaque(true);
-            version.setFont(version.getFont().deriveFont(10.0f).deriveFont(Font.PLAIN));
+            version.setOpaque(false);
+            version.setFont(version.getFont().deriveFont(Font.PLAIN, (float) ThemeManager.scale(11)));
+            version.setForeground(ThemeManager.TEXT_SECONDARY);
             if (info.ModVersion != null) {
-                version.setText(info.ModVersion.toString());
+                version.setText("v" + info.ModVersion.toString());
             } else {
                 version.setText("missing version");
+                version.setForeground(ThemeManager.STATUS_WARNING);
             }
             add(version, BorderLayout.SOUTH);
-
-            checkBox.setBackground(Color.WHITE);
-            setBackground(Color.WHITE);
         }
 
-        @Override
-        public void setBackground(Color c)
-        {
-            super.setBackground(c);
-            if (name != null) {
-                name.setBackground(c);
+        public void resetColors() {
+            name.setForeground(ThemeManager.TEXT_PRIMARY);
+            if (info.ModVersion != null) {
+                version.setForeground(ThemeManager.TEXT_SECONDARY);
+            } else {
+                version.setForeground(ThemeManager.STATUS_WARNING);
             }
-            if (version != null) {
-                version.setBackground(c);
-            }
-            if (update != null) {
-                update.setBackground(c);
-            }
+        }
+
+        public void setWarningColors(Color textColor) {
+            name.setForeground(textColor);
+            version.setForeground(textColor.darker());
         }
     }
-    
+
 }
