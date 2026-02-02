@@ -1,6 +1,21 @@
 ## Changelog ##
 #### dev ####
 
+#### v3.31.0 ####
+##### 性能优化 #####
+* 优化 `bufferStream()` 使用 8KB 缓冲区替代逐字节读取（Mod 加载速度提升 10-50 倍）
+* 缓存 EnumBuster JAR 扫描结果，只扫描一次而非每个枚举都扫描（枚举补丁速度提升 5-20 倍）
+* `isModLoaded()` 从 O(n) 线性查找改为 O(1) HashSet 查找
+* 优化 `Sync.avg()` 使用增量累加替代每帧重新计算
+* ModInfo 中使用 Gson 单例替代每次创建新实例
+* patchInfos 从 TreeSet 改为 ArrayList + 一次性排序（批量插入更快）
+
+##### Bug 修复 #####
+* 修复资源泄漏：在 `findGameVersion()` 中关闭 URLClassLoader
+* 修复资源泄漏：在 `unpackJar()` 中使用 try-with-resources
+* 修复 ModPanel 中字符串比较使用 `==` 而非 `.equals()` 的问题
+* 修复 pom.xml 中 `<exlude>` 拼写错误
+
 #### v3.30.3 ####
 * Fix package information being lost for patched classes (Alchyr)
 

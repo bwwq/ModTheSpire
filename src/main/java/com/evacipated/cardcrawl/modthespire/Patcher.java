@@ -26,7 +26,9 @@ import java.util.*;
 public class Patcher {
     public static Map<URL, AnnotationDB> annotationDBMap = new HashMap<>();
     private static Map<Class<?>, EnumBusterReflect> enumBusterMap = new HashMap<>();
-    private static TreeSet<PatchInfo> patchInfos = new TreeSet<>(new PatchInfoComparator());
+    // 使用 ArrayList 收集补丁，最后一次性排序，避免 TreeSet 每次插入的 O(log n) 开销
+    private static List<PatchInfo> patchInfos = new ArrayList<>();
+    private static final PatchInfoComparator patchInfoComparator = new PatchInfoComparator();
 
     public static void initializeMods(ClassLoader loader, ModInfo... modInfos) throws ClassNotFoundException, InvocationTargetException, IllegalAccessException
     {
@@ -310,6 +312,8 @@ public class Patcher {
             System.out.println();
             System.out.println();
         }
+        // 一次性排序所有补丁
+        patchInfos.sort(patchInfoComparator);
         for (PatchInfo p : patchInfos) {
             if (Loader.DEBUG) {
                 p.debugPrint();

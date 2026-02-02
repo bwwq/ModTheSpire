@@ -66,26 +66,33 @@ public class Loader
     private static ModSelectWindow ex;
 
     private static final List<URL> extraJars = new ArrayList<>();
+    private static Set<String> loadedModIdCache = null;
+
+    // 构建或重建已加载 mod ID 缓存
+    private static void rebuildModIdCache()
+    {
+        Set<String> cache = new HashSet<>();
+        if (MODINFOS != null) {
+            for (ModInfo info : MODINFOS) {
+                if (info.ID != null) {
+                    cache.add(info.ID);
+                }
+            }
+        }
+        loadedModIdCache = cache;
+    }
 
     public static boolean isModLoaded(String modID)
     {
-        for (int i=0; i<MODINFOS.length; ++i) {
-            if (modID.equals(MODINFOS[i].ID)) {
-                return true;
-            }
+        if (loadedModIdCache == null) {
+            rebuildModIdCache();
         }
-        return false;
+        return loadedModIdCache.contains(modID);
     }
 
     public static boolean isModSideloaded(String modID)
     {
-        modID = "__sideload_" + modID;
-        for (int i=0; i<MODINFOS.length; ++i) {
-            if (modID.equals(MODINFOS[i].ID)) {
-                return true;
-            }
-        }
-        return false;
+        return isModLoaded("__sideload_" + modID);
     }
 
     public static boolean isModLoadedOrSideloaded(String modID)
@@ -415,6 +422,7 @@ public class Loader
                 checkDependencies(modInfos);
                 modInfos = orderDependencies(modInfos);
                 MODINFOS = modInfos;
+                loadedModIdCache = null; // 使缓存失效
             }
 
             printMTSInfo(System.out);
@@ -434,6 +442,7 @@ public class Loader
                 MTSClassPool pool = new MTSClassPool(tmpPatchingLoader);
 
                 MODINFOS = Patcher.sideloadMods(tmpPatchingLoader, loader, pool, ALLMODINFOS, MODINFOS);
+                loadedModIdCache = null; // sideload 后使缓存失效
 
                 // Patch enums
                 System.out.printf("Patching enums...");
@@ -577,8 +586,9 @@ public class Loader
 
     private static void findGameVersion()
     {
+        URLClassLoader tmpLoader = null;
         try {
-            URLClassLoader tmpLoader = new URLClassLoader(new URL[]{new File(STS_JAR).toURI().toURL()});
+            tmpLoader = new URLClassLoader(new URL[]{new File(STS_JAR).toURI().toURL()});
             // Read CardCrawlGame.VERSION_NUM
             InputStream in = tmpLoader.getResourceAsStream("com/megacrit/cardcrawl/core/CardCrawlGame.class");
             ClassReader classReader = new ClassReader(in);
@@ -592,6 +602,14 @@ public class Loader
             classReader2.accept(new GameBetaFinder(), 0);
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            if (tmpLoader != null) {
+                try {
+                    tmpLoader.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -609,17 +627,15 @@ public class Loader
             String filename = Paths.get(name).getFileName().toString();
             Path tmpFile = tmpDir.resolve(filename);
 
-            InputStream input = Loader.class.getResourceAsStream(name);
-            OutputStream output = new FileOutputStream(tmpFile.toFile());
+            try (InputStream input = Loader.class.getResourceAsStream(name);
+                 OutputStream output = new FileOutputStream(tmpFile.toFile())) {
 
-            byte[] buf = new byte[8192];
-            int length;
-            while ((length = input.read(buf)) > 0) {
-                output.write(buf, 0, length);
+                byte[] buf = new byte[8192];
+                int length;
+                while ((length = input.read(buf)) > 0) {
+                    output.write(buf, 0, length);
+                }
             }
-
-            output.close();
-            input.close();
 
             extraJars.add(tmpFile.toUri().toURL());
         } catch (Exception e) {

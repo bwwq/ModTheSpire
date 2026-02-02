@@ -90,10 +90,10 @@ public class MTSClassLoader extends URLClassLoader
     private byte[] bufferStream(InputStream is) throws IOException
     {
         ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        int nextValue = is.read();
-        while (nextValue != -1) {
-            byteStream.write(nextValue);
-            nextValue = is.read();
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = is.read(buffer)) != -1) {
+            byteStream.write(buffer, 0, bytesRead);
         }
         return byteStream.toByteArray();
     }

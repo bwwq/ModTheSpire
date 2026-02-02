@@ -139,6 +139,7 @@ class Sync {
     private class RunningAvg {
         private final long[] slots;
         private int offset;
+        private long runningSum; // 增量维护的总和
 
         private static final long DAMPEN_THRESHOLD = 10 * 1000L * 1000L; // 10ms
         private static final float DAMPEN_FACTOR = 0.9f; // don't change: 0.9f is exactly right!
@@ -146,31 +147,35 @@ class Sync {
         public RunningAvg(int slotCount) {
             this.slots = new long[slotCount];
             this.offset = 0;
+            this.runningSum = 0;
         }
 
         public void init(long value) {
             while (this.offset < this.slots.length) {
                 this.slots[this.offset++] = value;
+                this.runningSum += value;
             }
         }
 
         public void add(long value) {
-            this.slots[this.offset++ % this.slots.length] = value;
-            this.offset %= this.slots.length;
+            int idx = this.offset % this.slots.length;
+            this.runningSum -= this.slots[idx]; // 减去旧值
+            this.runningSum += value;           // 加上新值
+            this.slots[idx] = value;
+            this.offset = (this.offset + 1) % this.slots.length;
         }
 
         public long avg() {
-            long sum = 0;
-            for (int i = 0; i < this.slots.length; i++) {
-                sum += this.slots[i];
-            }
-            return sum / this.slots.length;
+            return this.runningSum / this.slots.length;
         }
 
         public void dampenForLowResTicker() {
             if (this.avg() > DAMPEN_THRESHOLD) {
+                // dampen 后需要重新计算 runningSum
+                this.runningSum = 0;
                 for (int i = 0; i < this.slots.length; i++) {
                     this.slots[i] *= DAMPEN_FACTOR;
+                    this.runningSum += this.slots[i];
                 }
             }
         }

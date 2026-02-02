@@ -17,9 +17,17 @@ import java.util.Properties;
 public class ModInfo implements Serializable
 {
     /**
-     * 
+     *
      */
     private static final long serialVersionUID = 7452562412479584982L;
+
+    // Gson 单例，线程安全
+    private static final Gson GSON = new GsonBuilder()
+        .excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
+        .registerTypeAdapter(Semver.class, new VersionDeserializer())
+        .setDateFormat("MM-dd-yyyy")
+        .create();
+
     public transient URL jarURL;
     public transient String statusMsg = " ";
     public transient boolean isWorkshop = false;
@@ -79,12 +87,6 @@ public class ModInfo implements Serializable
 
     public static ModInfo ReadModInfo(File mod_jar)
     {
-        Gson gson = new GsonBuilder()
-            .excludeFieldsWithModifiers(Modifier.STATIC, Modifier.TRANSIENT)
-            .registerTypeAdapter(Semver.class, new VersionDeserializer())
-            .setDateFormat("MM-dd-yyyy")
-            .create();
-
         URLClassLoader loader = null;
         try {
             loader = new URLClassLoader(new URL[] {mod_jar.toURI().toURL()}, null);
@@ -95,7 +97,7 @@ public class ModInfo implements Serializable
                 info.jarURL = mod_jar.toURI().toURL();
                 return info;
             }
-            ModInfo info = gson.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), ModInfo.class);
+            ModInfo info = GSON.fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), ModInfo.class);
             info.jarURL = mod_jar.toURI().toURL();
             in.close();
             return info;

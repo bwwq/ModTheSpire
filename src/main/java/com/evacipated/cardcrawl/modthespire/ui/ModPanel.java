@@ -138,7 +138,7 @@ public class ModPanel extends JPanel
             info.statusMsg = tooltip.toString();
         }
         if (Loader.STS_VERSION != null && info.STS_Version != null && !Loader.STS_VERSION.equals(info.STS_Version)) {
-            if (info.statusMsg == " ") {
+            if (" ".equals(info.statusMsg)) {
                 info.statusMsg = "This mod explicitly supports StS " + info.STS_Version + ".\n" +
                     "You are running StS " + Loader.STS_VERSION + ".\n" +
                     "You may encounter problems running it.";

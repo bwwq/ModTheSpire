@@ -8,6 +8,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.List;
 
 public class EnumBusterReflect {
     private static final Class[] EMPTY_CLASS_ARRAY =
@@ -17,6 +18,9 @@ public class EnumBusterReflect {
 
     private static final String VALUES_FIELD = "$VALUES";
     private static final String ORDINAL_FIELD = "ordinal";
+
+    // 缓存：扫描一次游戏 JAR，按枚举类名索引所有 switch 字段信息
+    private static Map<String, List<SwitchFieldRef>> switchFieldScanCache = null;
 
     private final ReflectionFactory reflection =
         ReflectionFactory.getReflectionFactory();
@@ -39,6 +43,17 @@ public class EnumBusterReflect {
         this.loader = loader;
         this.clazz = clazz;
         switchFields = findRelatedSwitchFields();
+    }
+
+    // switch 字段引用信息，用于延迟解析
+    private static class SwitchFieldRef {
+        final String className;
+        final String fieldName;
+
+        SwitchFieldRef(String className, String fieldName) {
+            this.className = className;
+            this.fieldName = fieldName;
+        }
     }
 
     /**
@@ -297,40 +312,88 @@ public class EnumBusterReflect {
 
     private Collection<Field> findRelatedSwitchFields() throws ClassNotFoundException, NoSuchFieldException
     {
+        // 确保只扫描一次游戏 JAR
+        if (switchFieldScanCache == null) {
+            switchFieldScanCache = scanAllSwitchFields();
+        }
+
         Collection<Field> result = new ArrayList<Field>();
+        String enumKey = clazz.getName();
 
-        ClassFinder finder = new ClassFinder();
-        finder.add(new File(Loader.STS_JAR));
-
-        ClassFilter filter =
-            new AndClassFilter(
-                new NotClassFilter(new InterfaceOnlyClassFilter()),
-                new NotClassFilter(new AbstractClassFilter()),
-                new RegexClassFilter("com\\.megacrit\\.cardcrawl\\..+\\$1")
-            );
-        Collection<ClassInfo> foundClasses = new ArrayList<>();
-        finder.findClasses(foundClasses, filter);
+        List<SwitchFieldRef> refs = switchFieldScanCache.get(enumKey);
+        if (refs == null) {
+            if (Loader.DEBUG) {
+                System.out.println();
+                System.out.println(clazz.getName() + ": 0 switch statement(s) (from cache)");
+            }
+            return result;
+        }
 
         if (Loader.DEBUG) {
             System.out.println();
             System.out.println(clazz.getName());
         }
-        int count = 0;
-        for (ClassInfo classInfo : foundClasses) {
-            for (FieldInfo field : classInfo.getFields()) {
-                String switchMapName = "$SwitchMap$" + clazz.getName().replace('.', '$');
-                if (field.getName().equals(switchMapName)) {
-                    count++;
-                    if (Loader.DEBUG) System.out.println("  " + classInfo.getClassName());
-                    Field realField = loader.loadClass(classInfo.getClassName()).getDeclaredField(field.getName());
-                    realField.setAccessible(true);
-                    result.add(realField);
-                }
+
+        for (SwitchFieldRef ref : refs) {
+            try {
+                if (Loader.DEBUG) System.out.println("  " + ref.className);
+                Field realField = loader.loadClass(ref.className).getDeclaredField(ref.fieldName);
+                realField.setAccessible(true);
+                result.add(realField);
+            } catch (ClassNotFoundException | NoSuchFieldException e) {
+                // 可能是类加载器不同导致的，跳过
+                if (Loader.DEBUG) System.out.println("  " + ref.className + " (skipped: " + e.getMessage() + ")");
             }
         }
-        if (Loader.DEBUG) System.out.println(count + " switch statement(s)");
 
-        return  result;
+        if (Loader.DEBUG) System.out.println(result.size() + " switch statement(s) (from cache)");
+
+        return result;
+    }
+
+    /**
+     * 扫描游戏 JAR 一次，构建所有枚举类型的 switch 字段索引
+     */
+    private static Map<String, List<SwitchFieldRef>> scanAllSwitchFields()
+    {
+        Map<String, List<SwitchFieldRef>> cache = new HashMap<>();
+
+        try {
+            ClassFinder finder = new ClassFinder();
+            finder.add(new File(Loader.STS_JAR));
+
+            ClassFilter filter =
+                new AndClassFilter(
+                    new NotClassFilter(new InterfaceOnlyClassFilter()),
+                    new NotClassFilter(new AbstractClassFilter()),
+                    new RegexClassFilter("com\\.megacrit\\.cardcrawl\\..+\\$1")
+                );
+            Collection<ClassInfo> foundClasses = new ArrayList<>();
+            finder.findClasses(foundClasses, filter);
+
+            // 解析所有 $SwitchMap$ 字段，按枚举类名分组
+            for (ClassInfo classInfo : foundClasses) {
+                for (FieldInfo field : classInfo.getFields()) {
+                    String fieldName = field.getName();
+                    if (fieldName.startsWith("$SwitchMap$")) {
+                        // 从字段名解析出枚举类名
+                        // 格式: $SwitchMap$com$megacrit$cardcrawl$SomeEnum
+                        String enumName = fieldName.substring("$SwitchMap$".length()).replace('$', '.');
+                        cache.computeIfAbsent(enumName, k -> new ArrayList<>())
+                            .add(new SwitchFieldRef(classInfo.getClassName(), fieldName));
+                    }
+                }
+            }
+
+            if (Loader.DEBUG) {
+                System.out.println("EnumBuster: Scanned " + foundClasses.size() + " classes, found switch maps for " + cache.size() + " enum types");
+            }
+        } catch (Exception e) {
+            System.err.println("EnumBuster: Failed to scan switch fields: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return cache;
     }
 
     private void removeSwitchCase(int ordinal) {
